@@ -69,16 +69,15 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Load in float16 on MPS to halve memory usage (~3.4 GB instead of ~6.8 GB).
-    # MPS does not support bfloat16, so float16 is the right choice on Apple Silicon.
-    dtype = torch.float16 if torch.backends.mps.is_available() else torch.float32
+    # Load in float32 on MPS — float16 training requires a GradScaler which
+    # accelerate does not support on MPS. With batch=1 and gradient checkpointing
+    # enabled in trainer.py, float32 fits within the 6.77 GB MPS limit.
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
-        torch_dtype=dtype,
         device_map="auto",
     )
     print(f"[main] model parameters: {model.num_parameters():,}")
-    print(f"[main] model dtype: {dtype}")
+    print(f"[main] model dtype: {model.dtype}")
 
     # ── 2. Evaluate BEFORE training ──────────────────────────────────────
     if not args.skip_eval:

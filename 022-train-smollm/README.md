@@ -376,17 +376,32 @@ google-ads-smollm-sft/          ← SFT model (follows GAQL instructions)
 
 ## What "continued pre-training" means
 
+The correct research term for what this project does is
+**Domain-Adaptive Pretraining (DAPT)**.
+
 Standard pre-training teaches the model English on trillions of tokens.
-We don't redo that.  We take the already-trained weights and run a few
+We don't redo that. We take the already-trained weights and run a few
 more steps of the same objective — next-token prediction — but only on
-our domain documents.  The model's general ability is preserved; it just
+our domain documents. The model's general ability is preserved; it just
 becomes better at predicting tokens that appear in Google Ads contexts
 (GAQL queries, API field names, campaign types, etc.).
 
 ```
-Base model           →  continued pre-training  →  Domain model
-(knows English)         (sees our docs once)        (knows Google Ads)
+Base Model
+      ↓
+Domain-Adaptive Pretraining / DAPT  (Google Ads docs → next-token prediction)
+      ↓
+Domain Expert Model                 (knows Google Ads vocabulary + structure)
+      ↓
+SFT                                 (GAQL instruction-response examples)
+      ↓
+Instruction-Following Domain Model  (answers Google Ads questions correctly)
 ```
+
+DAPT is the most accurate term — used in research papers like
+"Don't Stop Pretraining" (Gururangan et al., 2020) which showed that
+continuing pretraining on domain text before fine-tuning consistently
+improves downstream task performance.
 
 ---
 

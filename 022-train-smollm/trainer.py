@@ -89,9 +89,11 @@ def build_trainer(
     device = _detect_device()
     print(f"[trainer] device: {device}")
 
-    # On MPS we can't use fp16; bf16 is fine on CUDA Ampere+; CPU uses fp32.
+    # fp16 is only available on CUDA — accelerate rejects it on MPS.
+    # On MPS we train in float32 instead; gradient checkpointing + batch=1
+    # keeps memory within the 6.77 GB MPS limit without needing a GradScaler.
     use_fp16 = device == "cuda"
-    use_bf16 = False  # set True if on A100/H100
+    use_bf16 = False
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
@@ -110,6 +112,8 @@ def build_trainer(
         lr_scheduler_type=LR_SCHEDULER_TYPE,
         fp16=use_fp16,
         bf16=use_bf16,
+        gradient_checkpointing=True,  # recompute activations to save memory
+        max_grad_norm=1.0,            # clip gradients — prevents NaN spikes
         logging_steps=logging_steps,
         save_steps=save_steps,
         save_total_limit=SAVE_TOTAL_LIMIT,

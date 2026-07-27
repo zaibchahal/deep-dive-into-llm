@@ -43,8 +43,9 @@ SUPPORTED_EXTENSIONS = {".md", ".mdc", ".sql", ".json"}
 # Trade-offs:
 #   Smaller (e.g. 256) → more examples, faster per step, less context per example.
 #   Larger  (e.g. 1024) → fewer examples, slower per step, model sees more context.
-#   512 is a safe default for a 360M model on a MacBook.
-BLOCK_SIZE = 512
+#   256 fits within the 6.77 GB MPS limit — gradient checkpointing recomputes
+#   the forward pass during backward, so shorter sequences halve activation memory.
+BLOCK_SIZE = 256
 
 
 # ── Training ──────────────────────────────────────────────────────────────────
@@ -54,12 +55,12 @@ BLOCK_SIZE = 512
 NUM_TRAIN_EPOCHS = 1
 
 # How many training examples are processed in one forward+backward pass per device.
-# Set to 1 to fit within Apple Silicon MPS memory limits (6.77 GB).
+# Set to 1 on Apple Silicon MPS: the logits tensor (batch × 512 × vocab_size) causes
+# a memory spike during loss computation when cast to float32.
 PER_DEVICE_BATCH_SIZE = 1
 
 # Gradients are accumulated for this many steps before the optimiser takes one step.
 # Effective batch size = PER_DEVICE_BATCH_SIZE × GRADIENT_ACCUMULATION_STEPS = 1 × 16 = 16.
-# Raised to 16 to compensate for batch=1, keeping effective batch the same.
 GRADIENT_ACCUMULATION_STEPS = 16
 
 # How fast the model updates its weights.
