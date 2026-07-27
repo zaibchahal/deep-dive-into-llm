@@ -91,7 +91,7 @@ SAVE_STEPS = 100
 
 # Print the training loss to the console every this many optimiser steps.
 # Lower values give more granular feedback; higher values produce less noise.
-LOGGING_STEPS = 10
+LOGGING_STEPS = 2
 
 # Maximum number of checkpoints to keep on disk at any one time.
 # Older checkpoints are deleted automatically when this limit is reached.
