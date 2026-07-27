@@ -92,6 +92,44 @@ A well-calibrated model's confidence matches its accuracy:
 - When it says 90% confident → it's correct ~90% of the time
 - LLMs out of the box are often overconfident → calibration fine-tuning helps
 
+## Web Search Grounding
+
+Replaces static RAG with a live index.
+
+```
+query → search API → top-k snippets → generate → faithfulness check
+```
+
+Key difference from RAG:
+- RAG: pre-built, fast, can go stale
+- Web search: real-time, higher latency, broader coverage
+
+Use web search when facts may post-date the model's training cutoff.
+
+## Self-Critique
+
+Ask the model to review its own output before serving it.
+
+High-risk signal patterns in a sentence:
+- Specific years or dates (`1889`, `in 1903`)
+- Specific measurements (`330 metres`, `12 kg`)
+- Superlatives (`the largest`, `the only`, `the first`)
+- Proper nouns — names of people or places
+
+Risk score = fraction of sentences that contain at least one risky pattern.
+
+No external call needed — cheap to run on every generation.
+
+## Citation Enforcement
+
+Force every factual claim to carry a source marker: `[1]`, `[2]`, ...
+
+Two failure modes to catch:
+1. **Uncited sentence** — claim has no `[N]` marker (came from parametric memory)
+2. **Unsupported citation** — marker is present but the cited snippet doesn't support the claim
+
+Citation coverage = fraction of sentences that are cited.
+
 ## Key Papers
 
 - Self-Consistency: Wang et al., 2022 — "Self-Consistency Improves Chain of Thought Reasoning in Language Models"

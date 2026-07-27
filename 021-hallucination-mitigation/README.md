@@ -9,6 +9,9 @@ By the end of this module, you should be able to answer:
 * What is self-consistency and how does it reduce hallucination?
 * How does entropy reveal model uncertainty?
 * What is faithfulness scoring and how do you measure it?
+* How does web search grounding differ from static RAG?
+* What is self-critique and how does it catch errors without external tools?
+* How does citation enforcement reduce extrinsic hallucination?
 * What are the main strategies for mitigating hallucination at inference time?
 
 ---
@@ -172,15 +175,94 @@ With RAG:    model conditions on retrieved chunks → verifiable
 
 ---
 
-## 9. Summary of Strategies
+## 9. Mitigation Strategy 6 — Web Search Grounding
+
+Web search is RAG with a live index instead of a static one.
+
+```
+User query → search engine → top-k result snippets
+                           → model generates from snippets
+                           → faithfulness check against snippets
+```
+
+The key differences from static RAG:
+
+| | Static RAG | Web Search |
+|---|---|---|
+| Index | Pre-built, fixed | Live internet |
+| Freshness | Stale after cutoff | Real-time |
+| Coverage | Only indexed docs | Broad |
+| Latency | Low | Higher |
+
+Web search is the right choice for time-sensitive facts (news, prices, current events) where the training data cutoff makes the model's parametric memory unreliable.
+
+The grounding pipeline:
+1. Issue a search query for the user's question.
+2. Retrieve the top-k result snippets.
+3. Generate a response conditioned on the snippets.
+4. Run a faithfulness check: every claim in the response should appear in the snippets.
+
+---
+
+## 10. Mitigation Strategy 7 — Self-Critique
+
+The model checks its own answer without any external tool.
+
+```
+Step 1: Generate an initial answer.
+Step 2: Ask the model: "Review your answer. List any claims you are
+        not confident about or that could be wrong."
+Step 3: Ask the model to revise, removing or hedging uncertain claims.
+```
+
+Why it works: LLMs are better at *recognising* errors in text than at *avoiding* them during generation. The generation task and the verification task activate different capabilities.
+
+A simpler heuristic variant — scan the response for:
+- Specific numbers, dates, or names (high hallucination risk)
+- Hedging phrases already present ("approximately", "around", "I believe")
+- Superlatives ("the first", "the only", "the largest") — often wrong
+
+Flag these tokens for human review or prompt a targeted re-check.
+
+---
+
+## 11. Mitigation Strategy 8 — Citation Enforcement
+
+Force the model to attribute every factual claim to a numbered source.
+
+```
+Sources:
+  [1] "The Eiffel Tower is 330 metres tall." (wikipedia.org/eiffel-tower)
+  [2] "It was completed in 1889." (britannica.com/eiffel-tower)
+
+Response:
+  "The Eiffel Tower stands 330 metres tall [1] and was completed
+   in 1889 [2]."
+```
+
+Post-processing:
+1. Extract all factual sentences from the response.
+2. Check each sentence for a citation marker (`[N]`).
+3. Verify that the cited source actually supports the claim (faithfulness check).
+4. Flag uncited sentences and unsupported citations.
+
+If a claim has no citation, it came from parametric memory — flag it.
+If a citation doesn't support the claim — flag it as a misattribution.
+
+---
+
+## 12. Summary of All Strategies
 
 | Strategy | When to use | Cost |
 |---|---|---|
-| Self-consistency | Closed-form QA, reasoning | N× inference cost |
-| Entropy thresholding | Any generation | Near zero |
+| Self-consistency | Closed-form QA, reasoning | N× inference |
+| Entropy thresholding | Any generation | ~free |
 | Faithfulness scoring | RAG / document QA | One extra pass |
 | Abstention | Safety-critical | Prompt or fine-tune |
-| RAG grounding | Knowledge-intensive tasks | Retrieval latency |
+| RAG grounding | Knowledge-intensive, static facts | Retrieval latency |
+| Web search grounding | Time-sensitive facts | Search API latency |
+| Self-critique | Any generation, no external tools | 1-2 extra LLM calls |
+| Citation enforcement | High-stakes factual answers | One post-processing pass |
 
 ---
 
@@ -248,6 +330,65 @@ Return True if the model should abstain (entropy too high or faithfulness too lo
 
 ---
 
+## Assignment 5 — Web Search Grounding
+
+Simulate a web search and a grounded generation pipeline:
+
+```python
+def web_search(query: str) -> list[dict]:
+    """Return a list of {url, snippet} results for the query."""
+    pass
+
+def generate_grounded(query: str, search_results: list[dict]) -> str:
+    """Generate a response based only on the search snippets."""
+    pass
+
+def verify_against_search(response: str, search_results: list[dict]) -> float:
+    """Faithfulness of the response relative to the search snippets."""
+    pass
+```
+
+---
+
+## Assignment 6 — Self-Critique
+
+Without any external tools, scan a response for high-risk tokens and flag uncertain claims:
+
+```python
+def self_critique(response: str) -> dict:
+    """
+    Returns:
+      flagged_claims : list of sentences containing risky patterns
+      risk_score     : float 0-1 (fraction of sentences flagged)
+      critique       : human-readable summary
+    """
+    pass
+```
+
+High-risk patterns to detect: specific numbers, dates, proper nouns, superlatives.
+
+---
+
+## Assignment 7 — Citation Enforcement
+
+Given a list of sources and a model response, verify citation coverage and faithfulness:
+
+```python
+def check_citations(response: str, sources: list[dict]) -> dict:
+    """
+    sources: list of {id, url, snippet}
+
+    Returns:
+      uncited_sentences    : list of factual sentences with no [N] marker
+      unsupported_citations: list of (sentence, cited_source) pairs where
+                             the source doesn't support the claim
+      citation_coverage    : float — fraction of sentences that are cited
+    """
+    pass
+```
+
+---
+
 # Success Criteria
 
 * Understand intrinsic vs extrinsic hallucination
@@ -255,3 +396,6 @@ Return True if the model should abstain (entropy too high or faithfulness too lo
 * Compute token and sequence entropy
 * Build a heuristic faithfulness scorer
 * Build an abstention decision function combining both signals
+* Simulate a web search grounding pipeline and verify its output
+* Flag high-risk claims in a response using self-critique heuristics
+* Check citation coverage and detect unsupported citations

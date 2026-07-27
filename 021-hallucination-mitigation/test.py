@@ -1,5 +1,10 @@
 import numpy as np
-from main import majority_vote, token_entropy, sequence_uncertainty, faithfulness_score, should_abstain
+from main import (
+    majority_vote, token_entropy, sequence_uncertainty,
+    faithfulness_score, should_abstain,
+    web_search, generate_grounded, verify_against_search,
+    self_critique, check_citations,
+)
 
 print("Running tests for 021-hallucination-mitigation...")
 
@@ -83,5 +88,85 @@ assert result["entropy_flagged"]
 result = should_abstain(certain_probs, ctx2, "The capital of Germany is Berlin and it is very large.", entropy_threshold=1.0, faithfulness_threshold=0.5)
 assert result["abstain"], "Should abstain on unfaithful response"
 assert result["faithfulness_flagged"]
+
+# --- web_search ---
+
+results = web_search("how tall is the eiffel tower height")
+assert isinstance(results, list), "web_search should return a list"
+assert len(results) > 0, "should find results for eiffel tower height"
+assert "url" in results[0] and "snippet" in results[0]
+
+# Unknown query returns empty list
+assert web_search("xyzzy nonexistent query 999") == []
+
+# --- generate_grounded ---
+
+results = web_search("how tall is the eiffel tower height")
+response = generate_grounded("how tall is the Eiffel Tower", results)
+assert isinstance(response, str) and len(response) > 0
+
+# No results → abstention message
+empty_response = generate_grounded("unknown query", [])
+assert "don't" in empty_response.lower() or "reliable" in empty_response.lower()
+
+# --- verify_against_search ---
+
+results = web_search("how tall is the eiffel tower height")
+good_resp = "The Eiffel Tower is 330 metres tall."
+bad_resp  = "The Colosseum in Rome was built by Napoleon in 1850."
+assert verify_against_search(good_resp, results) >= verify_against_search(bad_resp, results)
+
+# No results → 0.0
+assert verify_against_search("anything", []) == 0.0
+
+# --- self_critique ---
+
+risky = "Marie Curie won two Nobel Prizes in 1903 and 1911."
+safe  = "Exercise is generally considered healthy."
+
+risky_result = self_critique(risky)
+safe_result  = self_critique(safe)
+
+assert risky_result["risk_score"] > safe_result["risk_score"], \
+    f"Risky response should score higher than safe. Got {risky_result['risk_score']} vs {safe_result['risk_score']}"
+assert 0.0 <= risky_result["risk_score"] <= 1.0
+assert 0.0 <= safe_result["risk_score"]  <= 1.0
+assert isinstance(risky_result["flagged_claims"], list)
+assert isinstance(risky_result["critique"], str)
+
+# Empty response
+empty_result = self_critique("")
+assert empty_result["risk_score"] == 0.0
+
+# --- check_citations ---
+
+sources = [
+    {"id": 1, "url": "wiki.org/eiffel", "snippet": "The Eiffel Tower is 330 metres tall and located in Paris."},
+    {"id": 2, "url": "brit.com/eiffel", "snippet": "The Eiffel Tower was completed in 1889."},
+]
+
+# Fully cited, faithful → high coverage, no uncited, no unsupported
+result = check_citations(
+    "The Eiffel Tower is 330 metres tall [1]. It was completed in 1889 [2].",
+    sources,
+)
+assert result["citation_coverage"] == 1.0, f"Expected 1.0, got {result['citation_coverage']}"
+assert len(result["uncited_sentences"]) == 0
+
+# One uncited sentence → coverage < 1
+result2 = check_citations(
+    "The Eiffel Tower is 330 metres tall [1]. It is the most visited monument in the world.",
+    sources,
+)
+assert result2["citation_coverage"] < 1.0
+assert len(result2["uncited_sentences"]) == 1
+
+# No citations at all → coverage 0
+result3 = check_citations(
+    "The Eiffel Tower is 330 metres tall. It was completed in 1889.",
+    sources,
+)
+assert result3["citation_coverage"] == 0.0
+assert len(result3["uncited_sentences"]) == 2
 
 print("All tests passed.")
