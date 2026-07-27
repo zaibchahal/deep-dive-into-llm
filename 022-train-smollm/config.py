@@ -54,13 +54,14 @@ BLOCK_SIZE = 512
 NUM_TRAIN_EPOCHS = 1
 
 # How many training examples are processed in one forward+backward pass per device.
-# Lower this (e.g. 2 or 1) if you run out of memory.
-PER_DEVICE_BATCH_SIZE = 4
+# Reduced to 2 to fit within Apple Silicon MPS memory limits.
+# Drop to 1 if you still get OOM errors.
+PER_DEVICE_BATCH_SIZE = 2
 
 # Gradients are accumulated for this many steps before the optimiser takes one step.
-# Effective batch size = PER_DEVICE_BATCH_SIZE × GRADIENT_ACCUMULATION_STEPS = 4 × 4 = 16.
-# This lets you simulate a larger batch without needing more RAM.
-GRADIENT_ACCUMULATION_STEPS = 4
+# Effective batch size = PER_DEVICE_BATCH_SIZE × GRADIENT_ACCUMULATION_STEPS = 2 × 8 = 16.
+# Raised from 4 to 8 to compensate for the smaller batch, keeping effective batch the same.
+GRADIENT_ACCUMULATION_STEPS = 8
 
 # How fast the model updates its weights.
 # 2e-5 means 0.00002 — a small, careful step size suitable for continued pre-training.

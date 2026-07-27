@@ -226,7 +226,7 @@ python evaluate.py --model HuggingFaceTB/SmolLM2-360M --label "base"
 ### Step 2 — Train the model ← this is the only step that updates weights
 
 ```bash
-python main.py
+python main.py --skip-eval
 ```
 
 You'll know it's training when you see the loss decreasing:

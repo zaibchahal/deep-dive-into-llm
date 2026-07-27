@@ -20,6 +20,7 @@ Run:
 import argparse
 from pathlib import Path
 
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from config import BLOCK_SIZE, DOCS_DIR, LEARNING_RATE, MODEL_NAME, OUTPUT_DIR
@@ -68,8 +69,16 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(args.model, device_map="auto")
+    # Load in float16 on MPS to halve memory usage (~3.4 GB instead of ~6.8 GB).
+    # MPS does not support bfloat16, so float16 is the right choice on Apple Silicon.
+    dtype = torch.float16 if torch.backends.mps.is_available() else torch.float32
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model,
+        torch_dtype=dtype,
+        device_map="auto",
+    )
     print(f"[main] model parameters: {model.num_parameters():,}")
+    print(f"[main] model dtype: {dtype}")
 
     # ── 2. Evaluate BEFORE training ──────────────────────────────────────
     if not args.skip_eval:
