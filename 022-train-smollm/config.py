@@ -98,6 +98,30 @@ LOGGING_STEPS = 10
 SAVE_TOTAL_LIMIT = 2
 
 
+# ── SFT (Supervised Fine-Tuning) ─────────────────────────────────────────────
+# Path to the JSONL file containing instruction-response training pairs.
+# Each line must be: {"messages": [{"role": "system"|"user"|"assistant", "content": "..."}]}
+SFT_DATA_PATH = "data/sft/sft_examples.jsonl"
+
+# Where the SFT model is saved after training.
+# Recommended: start from the CPT checkpoint, not the base model.
+#   python sft_main.py --model google-ads-smollm --output-dir google-ads-smollm-sft
+SFT_OUTPUT_DIR = "google-ads-smollm-sft"
+
+# Max tokens per packed example in SFT.
+# SFT examples (Q&A pairs) are shorter than CPT blocks, so 512 is usually enough.
+# Increase to 1024 if your assistant responses get truncated.
+SFT_BLOCK_SIZE = 512
+
+# SFT typically needs more epochs than CPT because the dataset is much smaller.
+# 3 epochs on ~30 examples is a reasonable starting point.
+SFT_NUM_TRAIN_EPOCHS = 3
+
+# Smaller batch for SFT — examples include both prompt and response so they
+# tend to be longer than raw CPT blocks.
+SFT_PER_DEVICE_BATCH_SIZE = 1
+
+
 # ── Evaluation ────────────────────────────────────────────────────────────────
 # Maximum number of new tokens the model is allowed to generate per prompt
 # during the before/after evaluation in evaluate.py.

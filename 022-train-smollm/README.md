@@ -282,6 +282,98 @@ google-ads-smollm-v2/       ← v2 (builds on v1, can add new docs or more epoch
 
 ---
 
+---
+
+## SFT — Supervised Fine-Tuning on GAQL Examples
+
+SFT runs **after** continued pre-training. CPT teaches the model the
+domain vocabulary; SFT teaches it to follow instructions and produce
+structured outputs like GAQL queries.
+
+### How CPT and SFT differ
+
+| | Continued Pre-training (main.py) | SFT (sft_main.py) |
+|---|---|---|
+| Data format | Raw text chunks | Instruction + Response pairs |
+| Loss computed on | Every token | Only the assistant's response |
+| Goal | Learn domain vocabulary | Learn to answer questions correctly |
+| Data source | 170 `.md`/`.sql`/`.json` docs | `data/sft/sft_examples.jsonl` |
+
+### SFT data format
+
+Each line in `sft_examples.jsonl` is a JSON object with a `messages` key:
+
+```jsonl
+{"messages": [
+  {"role": "system",    "content": "You are a Google Ads AI assistant..."},
+  {"role": "user",      "content": "Get campaign impressions for the last 30 days."},
+  {"role": "assistant", "content": "SELECT campaign.id, campaign.name, metrics.impressions FROM campaign WHERE segments.date DURING LAST_30_DAYS ORDER BY metrics.impressions DESC"}
+]}
+```
+
+### Install TRL (required for SFT)
+
+```bash
+pip install trl
+```
+
+### Run SFT
+
+The recommended flow — CPT first, then SFT on top of it:
+
+```bash
+# Step 1: CPT — teach domain vocabulary
+python main.py --skip-eval --docs-dir docs
+
+# Step 2: SFT — teach instruction following, starting from the CPT checkpoint
+python sft_main.py --model google-ads-smollm --output-dir google-ads-smollm-sft
+```
+
+Or start SFT directly from the base model (skipping CPT):
+
+```bash
+python sft_main.py
+```
+
+### SFT CLI flags
+
+```bash
+python sft_main.py \
+  --model        google-ads-smollm          # start from CPT checkpoint
+  --data-path    data/sft/sft_examples.jsonl
+  --output-dir   google-ads-smollm-sft
+  --epochs       3
+  --batch-size   1
+  --max-seq-length 512
+  --skip-eval
+```
+
+### Add your own SFT examples
+
+Open `data/sft/sft_examples.jsonl` and add one JSON object per line:
+
+```jsonl
+{"messages": [
+  {"role": "system",    "content": "You are a Google Ads AI assistant..."},
+  {"role": "user",      "content": "YOUR QUESTION HERE"},
+  {"role": "assistant", "content": "YOUR ANSWER OR GAQL QUERY HERE"}
+]}
+```
+
+The more diverse and accurate your examples, the better the model learns.
+
+### Full training pipeline
+
+```
+Base model (HuggingFaceTB/SmolLM2-360M)
+    ↓  python main.py --docs-dir docs
+google-ads-smollm/              ← CPT checkpoint (knows Google Ads vocabulary)
+    ↓  python sft_main.py --model google-ads-smollm
+google-ads-smollm-sft/          ← SFT model (follows GAQL instructions)
+```
+
+---
+
 ## What "continued pre-training" means
 
 Standard pre-training teaches the model English on trillions of tokens.
