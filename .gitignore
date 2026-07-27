@@ -1,2 +1,5 @@
 venv/
 docs/
+__pycache__/
+*.pyc
+google-ads-smollm/
