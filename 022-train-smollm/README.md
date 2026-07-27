@@ -118,6 +118,10 @@ This runs every step in order:
 # Use a different docs folder (e.g. a small test set)
 python main.py --docs-dir data/continue-pre-train
 
+# Continue training from a previous checkpoint into a new version
+# Instead of starting from the base model, this builds on top of what v1 already learned
+python main.py --skip-eval --docs-dir docs --model google-ads-smollm --output-dir google-ads-smollm-v2
+
 # Train for 3 epochs with a smaller batch
 python main.py --epochs 3 --batch-size 2
 
@@ -249,6 +253,32 @@ Compare the trained checkpoint against the base model baseline.
 ```bash
 python evaluate.py --model google-ads-smollm --label "fine-tuned"
 ```
+
+---
+
+## Training versions
+
+Each training run produces a self-contained checkpoint folder.
+You can chain runs to build progressively better versions:
+
+```
+Base model (HuggingFaceTB/SmolLM2-360M)
+    ↓
+python main.py --docs-dir docs --output-dir google-ads-smollm
+    ↓
+google-ads-smollm/          ← v1 (trained on full docs, 1 epoch)
+    ↓
+python main.py --model google-ads-smollm --docs-dir docs --output-dir google-ads-smollm-v2
+    ↓
+google-ads-smollm-v2/       ← v2 (builds on v1, can add new docs or more epochs)
+```
+
+| Flag | What it controls |
+|---|---|
+| `--model` | Where to start from (base model or a previous checkpoint) |
+| `--output-dir` | Where to save the new version |
+| `--docs-dir` | Which documents to train on |
+| `--epochs` | How many passes over the documents |
 
 ---
 

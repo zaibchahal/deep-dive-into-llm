@@ -3,3 +3,4 @@ docs/
 __pycache__/
 *.pyc
 google-ads-smollm/
+.DS_Store
