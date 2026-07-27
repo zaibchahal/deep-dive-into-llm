@@ -34,6 +34,7 @@ Each module contains:
 | 018 | Agent | ReAct loop: observe-think-act |
 | 019 | SFT | Instruction tuning with loss masking |
 | 020 | RLHF Basics | Reward model, DPO, preference alignment |
+| 021 | Hallucination Mitigation | Self-consistency, entropy, faithfulness, abstention |
 
 ## Setup
 

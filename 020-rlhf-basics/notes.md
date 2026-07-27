@@ -72,29 +72,6 @@ Prevention: KL penalty, diverse reward signals, human evaluation.
 - Gemini (Google)
 - LLaMA 2 Chat (Meta)
 
-## Congratulations!
+## Up Next
 
-You have completed all 20 modules:
-
-```
-001 Tokenization          → text to IDs
-002 Embeddings            → IDs to vectors
-003 Positional Encoding   → inject order
-004 Self-Attention        → Q, K, V
-005 Multi-Head Attention  → parallel heads
-006 Feed-Forward Network  → per-token MLP
-007 Layer Norm            → stabilize training
-008 Residual Connections  → gradient flow
-009 Transformer Block     → full block
-010 Transformer Stack     → N blocks deep
-011 Next Token Prediction → LM head
-012 Decoding              → greedy / sampling
-013 Train Tiny GPT        → training loop
-014 Inference             → KV cache
-015 LoRA                  → efficient fine-tuning
-016 RAG                   → retrieval augmentation
-017 Tool Calling          → LLM + functions
-018 Agent                 → observe-think-act
-019 SFT                   → instruction tuning
-020 RLHF                  → human preference alignment
-```
+Module 021 — Hallucination Mitigation: self-consistency, entropy-based uncertainty, faithfulness scoring, and abstention.
