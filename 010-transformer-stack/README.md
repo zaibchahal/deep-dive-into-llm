@@ -1,5 +1,11 @@
 # 010 — Transformer Stack
 
+## References
+
+* [How Transformers Work](https://www.nn-visual.com/transformers) — Interactive visualization of all 12 GPT-2 transformer blocks stacked end-to-end. Step through individual layers and heads to see how representations evolve from surface-level patterns in early layers to deep semantics in later ones.
+
+---
+
 ## Goal
 
 By the end of this module, you should be able to answer:

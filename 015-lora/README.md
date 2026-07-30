@@ -1,5 +1,13 @@
 # 015 — LoRA (Low-Rank Adaptation)
 
+## References
+
+* [LoRA Paper — Hu et al. 2021](https://arxiv.org/abs/2106.09685) — The original "LoRA: Low-Rank Adaptation of Large Language Models" paper.
+* [Illustrated LoRA — Sebastian Raschka](https://magazine.sebastianraschka.com/p/practical-tips-for-finetuning-llms) — Practical intuition and tips for fine-tuning LLMs with LoRA.
+* [HuggingFace PEFT](https://huggingface.co/docs/peft) — The standard library for applying LoRA (and QLoRA) to any HuggingFace model.
+
+---
+
 ## Goal
 
 By the end of this module, you should be able to answer:
@@ -8,7 +16,10 @@ By the end of this module, you should be able to answer:
 * What is LoRA?
 * How does low-rank decomposition work?
 * How many parameters does LoRA add?
-* What is rank r and alpha?
+* What is rank `r` and `alpha`?
+* What is QLoRA and how does it differ from LoRA?
+* How do you merge a LoRA adapter back into the base model?
+* Which layers should you apply LoRA to?
 
 ---
 
@@ -154,6 +165,66 @@ Sometimes also FFN weights.
 
 Not applied to layer norms or embeddings.
 
+In HuggingFace PEFT, these are called **target modules**:
+
+```python
+target_modules = ["q_proj", "v_proj"]          # minimal
+target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]  # full attention
+```
+
+---
+
+## 9. Merging Adapters
+
+After training, you can **merge** the adapter back into the base weights:
+
+```
+W_merged = W + (alpha / r) × (B @ A)
+```
+
+Result: a single matrix, **zero inference overhead**.
+
+```python
+model = model.merge_and_unload()   # PEFT one-liner
+```
+
+The merged model is identical in size to the original — but now fine-tuned.
+
+---
+
+## 10. QLoRA
+
+QLoRA = **4-bit quantized base model** + LoRA adapters on top.
+
+```
+Base model weights:  4-bit (frozen, quantized with bitsandbytes)
+LoRA A, B matrices:  bf16 (trainable)
+```
+
+Why it matters:
+
+| Method       | GPU RAM (7B model) |
+| ------------ | ------------------ |
+| Full fine-tune | ~112 GB          |
+| LoRA (bf16)  | ~16 GB             |
+| QLoRA (4-bit)| ~6 GB              |
+
+QLoRA lets you fine-tune a 7B model on a single consumer GPU.
+
+Key addition: **double quantization** + **NF4 data type** (Normal Float 4).
+
+---
+
+## 11. Common Hyperparameters in Practice
+
+| Hyperparameter | Typical Value | Notes |
+| -------------- | ------------- | ----- |
+| `r`            | 8 or 16       | Higher = more expressive, more params |
+| `alpha`        | 16 or 32      | Often set to `2 × r` |
+| `dropout`      | 0.05          | Applied to LoRA layers for regularisation |
+| `target_modules` | `q_proj, v_proj` | Start minimal, expand if underfitting |
+| `bias`         | `none`        | Usually don't train biases |
+
 ---
 
 # Coding Assignments
@@ -209,9 +280,50 @@ Show that loss decreases.
 
 ---
 
+## Assignment 5 — Merge the Adapter
+
+After training A and B, merge them back:
+
+```python
+W_merged = W + (alpha / r) * (B @ A)
+```
+
+Verify that `W_merged @ x` gives the same output as the LoRA forward pass.
+
+---
+
+## Assignment 6 — Apply LoRA with PEFT
+
+Use HuggingFace PEFT to apply LoRA to a small model (e.g. `gpt2`):
+
+```python
+from peft import LoraConfig, get_peft_model
+
+config = LoraConfig(r=8, lora_alpha=16, target_modules=["c_attn"])
+model = get_peft_model(model, config)
+model.print_trainable_parameters()
+```
+
+Check how many parameters are trainable vs frozen.
+
+---
+
+## Assignment 7 — Rank Ablation
+
+Train the same LoRA adapter at `r = 1, 4, 8, 32`.
+
+Plot: final loss vs parameter count.
+
+Observe: at what rank does performance plateau?
+
+---
+
 # Success Criteria
 
 * Understand why LoRA uses fewer parameters
-* Implement LoRA forward pass
-* Train A and B while W is frozen
-* Know rank, alpha, and which layers get LoRA
+* Implement LoRA forward pass from scratch
+* Train A and B while W is frozen and confirm loss drops
+* Merge adapter back into base weights with zero overhead
+* Know what `r`, `alpha`, `target_modules`, and `dropout` do
+* Explain the difference between LoRA and QLoRA
+* Use PEFT to apply LoRA to a real HuggingFace model

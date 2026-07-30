@@ -1,5 +1,11 @@
 # 004 — Self-Attention
 
+## References
+
+* [Transformer Attention Visualizer](https://context-lab.com/llm-course/demos/attention/) — Interactively explore how transformer models attend to different tokens. Supports DistilBERT, BERT, GPT-2 and more, with heatmap, arc diagram, and matrix views.
+
+---
+
 ## Goal
 
 By the end of this module, you should be able to answer:

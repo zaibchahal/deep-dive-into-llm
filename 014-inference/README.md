@@ -1,5 +1,11 @@
 # 014 — Inference
 
+## References
+
+* [Transformer Explainer](https://poloclub.github.io/transformer-explainer/) — Runs a live GPT-2 model in the browser. Type any text and watch the full inference pipeline: tokenization → embeddings → attention → FFN → softmax sampling, all in real time.
+
+---
+
 ## Goal
 
 By the end of this module, you should be able to answer:

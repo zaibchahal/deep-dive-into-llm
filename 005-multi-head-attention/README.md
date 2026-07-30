@@ -1,5 +1,11 @@
 # 005 — Multi-Head Attention
 
+## References
+
+* [Multi-Head Attention Simulator](https://www.sharetechnote.com/html/WebProgramming/Websim_TfMHAttention.html) — Step-by-step animated simulation of multi-head attention. Shows parallel heads (Grammar, Action, Reference), attention weights, concatenation, and the WO output projection in full mathematical detail.
+
+---
+
 ## Goal
 
 By the end of this module, you should be able to answer:

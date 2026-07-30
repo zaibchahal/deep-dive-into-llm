@@ -1,5 +1,11 @@
 # 001 — Tokenization
 
+## References
+
+* [Tiktokenizer](https://tiktokenizer.vercel.app/) — Interactive visualizer for GPT tokenizers. Paste any text and see how it gets split into tokens in real time.
+
+---
+
 ## Goal
 
 By the end of this module, you should be able to answer:
@@ -447,3 +453,4 @@ By the end of this module, you should be able to explain, without notes:
 * How text becomes token IDs.
 * Why token count determines context limits and API costs.
 * The trade-offs of a simple whitespace tokenizer versus modern approaches like BPE.
+

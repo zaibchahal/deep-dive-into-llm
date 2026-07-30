@@ -1,5 +1,11 @@
 # 002 — Embeddings
 
+## References
+
+* [WordCanvas3D — Embedding Visualizer](https://wordcanvas3d.vercel.app/embedding) — Visualize word embeddings in 3D space using PCA or UMAP. Great for building intuition around how words cluster by meaning.
+
+---
+
 ## Goal
 
 Understand:

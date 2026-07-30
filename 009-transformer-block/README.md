@@ -1,5 +1,11 @@
 # 009 — Transformer Block
 
+## References
+
+* [How Transformers Work](https://www.nn-visual.com/transformers) — Interactive visualization of the full transformer pipeline. Explore the internals of a single block: multi-head attention → Add & Norm → feed-forward → Add & Norm, with real GPT-2 weights.
+
+---
+
 ## Goal
 
 By the end of this module, you should be able to answer:

@@ -1,5 +1,11 @@
 # 006 — Feed-Forward Network
 
+## References
+
+* [Neural Network Visualizer](https://projects.machcomputing.com/projects/neural-network) — Interactive backpropagation animation. Step through forward pass, backward pass, and weight updates in real time with presets for XOR, AND, OR, and more. Supports Sigmoid, ReLU, and Tanh activations with MSE, BCE, and Huber loss functions.
+
+---
+
 ## Goal
 
 By the end of this module, you should be able to answer:
