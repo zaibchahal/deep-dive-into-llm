@@ -1,52 +1,78 @@
 # 007 — Layer Normalization: Notes
 
-## Why Normalize?
+## The Problem
 
-Neural networks with large activations train poorly.
+After Attention and FFN, token vectors can have wildly different scales.
 
-Layer norm keeps each token's vector in a stable range: mean≈0, std≈1.
+The next layer can't learn well when inputs vary from `[0.5, -0.2, 1.1]` to `[500, -200, 900]`.
+Large values → unstable gradients → harder training.
+
+## What LayerNorm Does
+
+Normalizes **each token vector independently**:
+
+1. Subtract mean → centered around zero
+2. Divide by std → consistent spread
+
+```text
+[8, 10, 12]
+  → subtract mean (10) → [-2, 0, 2]
+  → divide by std (1.63) → [-1.22, 0, 1.22]
+```
+
+The relative pattern is preserved. The scale is removed.
 
 ## Formula
 
 ```
+μ      = mean(x)
+σ²     = variance(x)
 x_norm = (x - μ) / √(σ² + ε)
 output = γ · x_norm + β
 ```
 
-- μ = mean over features
-- σ² = variance over features
-- ε = numerical stability (1e-5)
-- γ, β = learned scale and shift
+- `ε` = small constant for numerical stability (e.g. 1e-5)
+- `γ, β` = learned scale and shift (initialized to 1 and 0)
 
-## Batch Norm vs Layer Norm
+## Why Gamma and Beta?
 
-Layer Norm works per-sample across features.
-Batch Norm works per-feature across the batch.
+After normalization, the model has no control over scale.
 
-Transformers need Layer Norm because batch sizes vary and sequences differ.
+Gamma and beta give the model learnable flexibility to rescale and reshift the normalized output.
 
-## Pre-Norm (modern) vs Post-Norm (original)
+At initialization `γ=1, β=0` → output equals `x_norm`.
+During training the model learns the optimal scale and shift for each dimension.
+
+> Normalization removes uncontrolled variation.
+> Gamma and beta restore controlled flexibility.
+
+## LayerNorm vs BatchNorm
+
+| | BatchNorm | LayerNorm |
+|---|-----------|-----------|
+| Normalizes over | batch dimension | feature dimension |
+| Depends on batch size | Yes | No |
+| Works with 1 example | No | Yes |
+| Used in | CNNs | Transformers |
+
+LayerNorm normalizes within a single token. BatchNorm normalizes across examples.
+Transformers use LayerNorm because sequences vary in length and inference often uses a single example.
+
+## Pre-Norm vs Post-Norm
 
 ```
-Post-Norm: LayerNorm(x + sublayer(x))
-Pre-Norm:  x + sublayer(LayerNorm(x))
+Post-Norm (2017): LayerNorm(x + sublayer(x))
+Pre-Norm  (GPT-2, LLaMA): x + sublayer(LayerNorm(x))
 ```
 
-Pre-Norm is more stable → used in GPT-2, LLaMA.
+Pre-Norm applies normalization **before** the sublayer.
+This stabilizes very deep networks — preferred in modern Transformers.
 
-## Initial Values
+## Shape
 
-```
-gamma = ones  (no scaling initially)
-beta  = zeros (no shift initially)
-```
-
-Learned during training.
-
-## Output
-
-Same shape as input. Just re-scaled per token.
+Input and output are always the same shape.
+LayerNorm never changes the embedding size.
 
 ## Next
 
-**Residual Connections** — add the input back to the output so gradients can flow freely.
+**Residual Connections** — add the input back to the output so gradients can flow freely through deep networks.

@@ -4,124 +4,295 @@
 
 By the end of this module, you should be able to answer:
 
-* What is Layer Normalization?
-* Why do Transformers need normalization?
-* What is the difference between Batch Norm and Layer Norm?
-* What are gamma and beta parameters?
+* What problem does LayerNorm solve?
+* Why does a Transformer normalize each token independently?
+* How does LayerNorm make embeddings stable?
+* Why are gamma and beta needed?
+* What is the difference between BatchNorm and LayerNorm?
+* What are Pre-Norm and Post-Norm architectures?
 
 ---
 
 # Theory
 
-## 1. The Problem: Training Instability
+## 1. The Problem: Unstable Activations
 
-During training, activations can grow very large or very small.
+After Attention and FFN, token representations can have very different scales.
 
 Example:
 
-```
-After FFN:  [-230, 450, -18, 12000]
+```text
+Token A:  [0.5, -0.2,  1.1,  0.8]
+
+Token B:  [500, -200,  900,  300]
 ```
 
-Large values cause:
+The problem is not that the information is wrong.
 
-* Gradient explosion
-* Saturated activations
-* Slow or failed training
+The problem is:
+
+> The next layer receives numbers with inconsistent scales.
+
+Large values can cause:
+
+* unstable gradients
+* harder optimization
+* slower training
 
 ---
 
-## 2. Normalization
+## 2. What LayerNorm Does (Intuition First)
 
-We want each vector to have:
+LayerNorm makes each token vector:
+
+1. **Centered around zero** — subtract the mean
+2. **Consistent spread** — divide by the standard deviation
+
+Example:
+
+Before:
+
+```text
+[8, 10, 12]
+```
+
+Subtract the mean (mean = 10):
+
+```text
+[-2, 0, 2]
+```
+
+Now centered. But the spread still varies between tokens.
+
+Divide by spread (std ≈ 1.63):
+
+```text
+[-1.22, 0, 1.22]
+```
+
+Now centered **and** same scale — regardless of the original magnitudes.
+
+The relative pattern is preserved. The scale is not.
+
+---
+
+## 3. LayerNorm Formula
+
+For one token vector `x = [x1, x2, ... xd]`:
+
+**Mean** — center the values:
 
 ```
-mean  ≈ 0
+μ = (x1 + x2 + ... + xd) / d
+```
+
+**Variance** — measure the spread:
+
+```
+σ² = average of (xi - μ)²
+```
+
+**Normalize:**
+
+```python
+x_norm = (x - μ) / sqrt(σ² + ε)
+```
+
+Result:
+
+```
+mean ≈ 0
 variance ≈ 1
 ```
 
-This keeps activations in a healthy range.
+`ε` is a tiny constant (e.g. `1e-5`) added to prevent division by zero when variance is near zero.
 
 ---
 
-## 3. Layer Norm Formula
+## 4. Why Gamma and Beta Exist
 
-For a single vector `x` of length `d`:
+After normalization, every token vector looks like this:
 
+```text
+[-1.2, 0, 1.2]
 ```
-μ  = mean(x)
-σ² = variance(x)
 
-x_norm = (x - μ) / sqrt(σ² + ε)
+The model has **no control over the scale anymore**.
 
+But maybe the next layer works better with a larger or shifted range:
+
+```text
+[-3.6, 0, 3.6]    ← scaled by 3
+```
+
+or:
+
+```text
+[-0.2, 1.0, 2.2]  ← shifted by 1
+```
+
+So LayerNorm adds two **learnable** parameters per dimension:
+
+```python
 output = gamma * x_norm + beta
 ```
 
 Where:
 
 ```
-ε     = small constant for numerical stability (e.g., 1e-5)
-gamma = learned scale parameter (shape: d)
-beta  = learned shift parameter (shape: d)
+gamma = learned scale   (initialized to 1)
+beta  = learned shift   (initialized to 0)
 ```
 
-Initially:
+At initialization:
 
+```python
+output = 1 * x_norm + 0 = x_norm
 ```
-gamma = ones
-beta  = zeros
-```
+
+So the network starts fully normalized, then **learns to adjust** the scale and shift during training.
+
+> Normalization removes uncontrolled variation.
+> Gamma and beta restore controlled flexibility.
 
 ---
 
-## 4. Layer Norm vs Batch Norm
+## 5. Why LayerNorm Instead of BatchNorm?
 
-| | Batch Norm | Layer Norm |
-|-|------------|------------|
-| Normalizes over | batch dimension | feature dimension |
-| Depends on batch size | Yes | No |
-| Works at test time | needs running stats | yes, per-sample |
-| Used in | CNNs | Transformers |
+### BatchNorm
 
-Transformers use **Layer Norm** because sequences have variable lengths and batch normalization doesn't work well.
+BatchNorm looks **across examples** in the batch:
+
+```text
+Batch:
+  Sentence 1: [0.2, -1.1, ...]
+  Sentence 2: [0.9,  0.3, ...]
+  Sentence 3: [1.4, -0.7, ...]
+```
+
+It asks:
+
+> "What is the average feature value across this batch?"
+
+**Problems for Transformers:**
+
+* Batch sizes change at training vs inference.
+* Sequence lengths vary — tokens can't be compared across sequences.
+* At inference time you may only have one example.
 
 ---
 
-## 5. Pre-Norm vs Post-Norm
+### LayerNorm
 
-Original Transformer (2017): **Post-Norm**
+LayerNorm looks **inside one token**:
 
+```text
+Token embedding:
+[0.2, -1.1, 0.7, 2.3]
 ```
+
+It asks:
+
+> "How should I normalize this one token's features?"
+
+Therefore it works naturally with variable-length sequences and single-sample inference.
+
+---
+
+## 6. Pre-Norm vs Post-Norm
+
+### Post-Norm (Original Transformer, 2017)
+
+```python
 output = LayerNorm(x + sublayer(x))
 ```
 
-Modern models (GPT-2+): **Pre-Norm**
+LayerNorm is applied **after** the residual addition.
 
-```
-output = x + sublayer(LayerNorm(x))
-```
-
-Pre-norm is more stable during training.
+**Problem:** In very deep networks, the residual path can accumulate large values before normalization — making training unstable.
 
 ---
 
-## 6. Visual
+### Pre-Norm (Modern Transformers: GPT-2, LLaMA)
 
+```python
+output = x + sublayer(LayerNorm(x))
 ```
-x = [10, -3, 200, 4]
 
-μ = (10 + -3 + 200 + 4) / 4 = 52.75
-σ² = variance
+LayerNorm is applied **before** the sublayer.
 
-x_norm = (x - μ) / √σ²
-       = [-0.98, -1.22, 3.22, -1.02]
+The input is always normalized before entering Attention or FFN.
 
-output = gamma * x_norm + beta
+This makes training deeper models easier and more stable.
+
+---
+
+## 7. Visual
+
+```text
+Token embedding
+
+[8, 10, 12]
+
+        │
+        ▼
+
+Find mean → center values
+
+[-2, 0, 2]
+
+        │
+        ▼
+
+Find variance → scale values
+
+[-1.22, 0, 1.22]
+
+        │
+        ▼
+
+Gamma + Beta
+
+(learned scale and shift — adjust only if needed)
+
+        │
+        ▼
+
+Output embedding
+
+(same shape, stable scale)
 ```
 
 ---
 
 # Coding Assignments
+
+## Assignment 0 — Understand Centering
+
+Before any formulas, implement the centering step alone.
+
+Given:
+
+```python
+x = [8, 10, 12]
+```
+
+Implement:
+
+```python
+def center(x):
+    pass
+```
+
+Expected output:
+
+```
+[-2, 0, 2]
+```
+
+Purpose: understand **why** subtracting the mean is the first step.
+
+---
 
 ## Assignment 1 — Manual Mean and Variance
 
@@ -131,7 +302,7 @@ Given:
 x = np.array([2.0, 4.0, 6.0, 8.0])
 ```
 
-Compute mean and variance manually (without numpy functions).
+Compute mean and variance manually (without using `np.mean` or `np.var`).
 
 ---
 
@@ -144,7 +315,7 @@ def normalize(x, eps=1e-5):
     pass
 ```
 
-Output should have mean ≈ 0, std ≈ 1.
+Output should have `mean ≈ 0` and `std ≈ 1`.
 
 ---
 
@@ -155,6 +326,10 @@ def layer_norm(x, gamma, beta, eps=1e-5):
     pass
 ```
 
+Verify that with `gamma=1, beta=0` the output equals `normalize(x)`.
+
+Then test with `gamma=2, beta=3` — the output should scale and shift accordingly.
+
 ---
 
 ## Assignment 4 — Apply to Sequence
@@ -164,11 +339,16 @@ Apply layer norm independently to each token in a sequence.
 Input: `(seq_len, d_model)`
 Output: `(seq_len, d_model)`
 
+Verify that each token row independently has `mean ≈ 0` and `std ≈ 1`.
+
 ---
 
 # Success Criteria
 
-* Implement layer norm from scratch
-* Understand gamma and beta
-* Know why layer norm is preferred over batch norm for Transformers
-* Know pre-norm vs post-norm
+* Understand why inconsistent scale hurts training.
+* Understand that mean centering shifts values around zero.
+* Understand that dividing by std controls the spread.
+* Understand that normalization preserves relative patterns but removes absolute scale.
+* Understand that gamma and beta restore learnable flexibility after normalization.
+* Implement LayerNorm from scratch.
+* Understand Pre-Norm vs Post-Norm and why modern models prefer Pre-Norm.
