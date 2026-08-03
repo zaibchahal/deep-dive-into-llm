@@ -9,6 +9,10 @@ identity = lambda v: np.zeros_like(v)
 out = residual_connection(x, identity)
 assert np.allclose(out, x), "With zero sublayer, output should equal input"
 
+# Test Assignment 1 expected output exactly
+sublayer_output = np.array([0.1, -0.2, 0.3, -0.1])
+assert np.allclose(x + sublayer_output, [1.1, 1.8, 3.3, 3.9])
+
 # Test residual adds correctly
 add_one = lambda v: np.ones_like(v)
 out2 = residual_connection(x, add_one)

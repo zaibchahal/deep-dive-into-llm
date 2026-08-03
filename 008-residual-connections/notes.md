@@ -8,30 +8,49 @@ output = x + sublayer(x)
 
 Add the input back to the output.
 
-This gives gradients a shortcut during backpropagation.
+## Two Problems Residuals Solve
 
-## Why It Works
+### 1. Forward pass — information destruction
 
-Backprop gradient through residual:
+Without residuals, each block completely replaces the representation.
+A later block can accidentally destroy what earlier blocks learned.
+
+With residuals, every block **adds** a correction to the existing representation.
+Earlier information is never fully erased.
+
+### 2. Backward pass — vanishing gradients
+
+Without shortcuts, gradients shrink through every layer:
+
+```
+0.9^50 ≈ 0.005
+```
+
+With shortcuts, the gradient through the residual path is:
 
 ```
 ∂L/∂x = ∂L/∂output × (1 + ∂sublayer/∂x)
 ```
 
-The `+1` means gradient never vanishes, even if sublayer gradients are tiny.
+The `+1` from the shortcut ensures the gradient always has a direct route back.
 
-## History
+## The Intuition
 
-ResNets (2015) used residuals to train 152-layer image networks.
+> The sublayer only learns: "What should I change about this representation?"
+> Not: "How do I rebuild everything from scratch?"
 
-Transformers adopted them for the same reason.
+```
+output ≈ x + small_correction
+```
 
 ## In the Transformer Block
 
 ```
-x = x + self_attention(layer_norm(x))   ← residual 1
-x = x + ffn(layer_norm(x))              ← residual 2
+x = x + attention(layer_norm(x))   ← residual 1
+x = x + ffn(layer_norm(x))         ← residual 2
 ```
+
+Every block builds on the current representation, never replaces it.
 
 ## Pre-Norm vs Post-Norm
 
@@ -40,17 +59,12 @@ Post-Norm: LayerNorm(x + sublayer(x))     ← original Transformer
 Pre-Norm:  x + sublayer(LayerNorm(x))     ← GPT-2, LLaMA
 ```
 
-Pre-Norm trains more stably at depth.
+Pre-Norm is more stable at depth — LayerNorm stabilizes the input before each sublayer.
 
-## Intuition
+## History
 
-The sublayer only needs to learn small corrections.
-
-```
-output ≈ x + small_improvement
-```
-
-Easier optimization than learning the full transformation from scratch.
+ResNet (He et al., 2015) showed 152-layer image networks work when layers learn corrections.
+Transformer (2017) adopted the same idea.
 
 ## Next
 
