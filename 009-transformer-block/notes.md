@@ -1,20 +1,38 @@
 # 009 — Transformer Block: Notes
 
+## The Mental Model
+
+One block = one reasoning step applied to every token.
+
+```
+Attention:  "I learn from other tokens."
+FFN:        "I analyze my own features."
+Residual:   "I keep what I already knew."
+LayerNorm:  "I keep the numbers stable."
+```
+
+Stack this 12, 32, or 96 times → GPT-2, LLaMA-7B, GPT-3.
+
 ## The Complete Block (Pre-Norm / GPT Style)
 
 ```
-x → LayerNorm → MultiHeadAttention → + x
-  → LayerNorm → FFN               → + x
+x → LayerNorm → MultiHeadAttention → +x
+  → LayerNorm → FFN               → +x
 ```
 
 ## Order of Operations
 
-1. LayerNorm(x)
-2. MultiHeadAttention → attn_out
-3. x = x + attn_out        (residual 1)
-4. LayerNorm(x)
-5. FFN → ffn_out
-6. x = x + ffn_out         (residual 2)
+```python
+# Attention sublayer
+x_norm   = LayerNorm(x)
+attn_out = MultiHeadAttention(x_norm)   # gather context from other tokens
+x        = x + attn_out                 # keep original, add correction
+
+# FFN sublayer
+x_norm  = LayerNorm(x)
+ffn_out = FFN(x_norm)                   # analyze own features
+x       = x + ffn_out                   # keep current, add correction
+```
 
 ## Shape Throughout
 
@@ -25,22 +43,34 @@ x → LayerNorm → MultiHeadAttention → + x
 (seq_len, d_model)   after residual 1
 (seq_len, d_model)   after LN 2
 (seq_len, d_model)   after FFN
-(seq_len, d_model)   after residual 2 = output
+(seq_len, d_model)   after residual 2  ← output
 ```
 
-Shape never changes — this allows stacking N blocks.
+Shape never changes. This is what allows stacking N blocks.
 
-## Parameters per Block
+## Encoder vs GPT Decoder-only
+
+GPT is called decoder-only because it uses causal (masked) attention.
+It is NOT because it decodes in the seq2seq sense — it has no encoder.
+
+|                     | Encoder (BERT) | GPT Decoder-only |
+|---------------------|----------------|------------------|
+| Sees future tokens  | Yes            | No               |
+| Causal mask         | No             | Yes              |
+| Generates text      | No             | Yes              |
+
+## Parameters per Block (approx)
 
 ```
 ≈ 12 × d_model²
 ```
 
-For d_model=768 (GPT-2): ~7M params per block × 12 blocks = ~85M.
+Breakdown:
+- Attention (4 weight matrices): 4d²
+- FFN (W1 + W2): 8d²
+- LayerNorm ×2: 4d (negligible)
 
-## Causal Mask
-
-GPT blocks use a causal mask in attention so each token only sees past tokens.
+GPT-2 (d=768, 12 blocks): ~85M parameters.
 
 ## Next
 
