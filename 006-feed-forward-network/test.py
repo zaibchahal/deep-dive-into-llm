@@ -1,7 +1,11 @@
 import numpy as np
-from main import relu, gelu, ffn, ffn_sequence
+from main import neuron, relu, gelu, ffn, ffn_sequence
 
 print("Running tests for 006-feed-forward-network...")
+
+# Test neuron
+# x=[2,3,4], w=[1,-2,0.5], b=1 → 2*1 + 3*(-2) + 4*0.5 + 1 = -1.0
+assert abs(neuron([2, 3, 4], [1, -2, 0.5], 1) - (-1.0)) < 1e-9
 
 # Test relu
 x = np.array([-3.0, -1.0, 0.0, 1.0, 3.0])

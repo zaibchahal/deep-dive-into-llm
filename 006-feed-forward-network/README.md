@@ -10,28 +10,51 @@
 
 By the end of this module, you should be able to answer:
 
+* What is a neuron?
 * What is the feed-forward network in a Transformer?
 * Why is it applied per-token independently?
-* What activation function is used?
-* What is the expansion factor and why?
+* What activation function is used, and why does it exist?
+* Why is the hidden layer larger than the embedding?
 
 ---
 
 # Theory
 
+## 0. What Is a Neuron?
+
+Before looking at the FFN, we need to answer one question.
+
+> **A neuron is one set of weights that produces one output value.**
+
+Given an input vector `x`, one neuron computes:
+
+```
+output = x[0]*w[0] + x[1]*w[1] + x[2]*w[2] + ... + b
+```
+
+That single number is the neuron's output.
+
+The neuron asks: **"Does my pattern appear in this input?"**
+
+If its weights happen to respond strongly to, say, "verb-like" features, then a large positive output means "yes, I detect something verb-like here."
+
+The FFN stacks many of these neurons in parallel.
+
+---
+
 ## 1. The Role of the FFN
 
-After multi-head attention:
+After multi-head attention, each token has a **context-aware embedding** — a vector that now reflects not only the token itself, but also the tokens around it.
 
-```
-Each token now has a context-aware representation.
-```
+The FFN does **not** communicate with other tokens. Instead, it analyzes **one token at a time**.
 
-But attention is essentially **linear**.
+Here is what the FFN does in sequence:
 
-The feed-forward network (FFN) introduces **non-linearity**.
+1. The first linear layer expands the embedding into many **neurons (feature detectors)**.
+2. The activation function (ReLU/GELU) allows only the relevant feature detectors to become active.
+3. The second linear layer combines the active features back into the original embedding size.
 
-It also gives the model more capacity to process each token.
+This gives the model much richer processing power than attention alone.
 
 ---
 
@@ -49,54 +72,133 @@ For each token vector x:
 
 This is a 2-layer MLP.
 
+Here is what each step means:
+
+```
+Context-aware embedding
+        │
+        ▼
+Linear W1
+(expand: d_model → d_ff)
+        │
+        ▼
+Many neurons (feature detectors)
+
+Each neuron asks:
+"Do I detect my feature in this token?"
+
+        │
+        ▼
+Activation (ReLU / GELU)
+
+Only relevant neurons stay active.
+Neurons that detect nothing → output zeroed.
+
+        │
+        ▼
+Linear W2
+(compress: d_ff → d_model)
+
+Combine all active features.
+
+        │
+        ▼
+Updated embedding
+```
+
 ---
 
 ## 3. Dimensions
 
-The hidden layer is expanded:
-
 ```
-Input:  d_model  (e.g., 512)
-Hidden: d_ff     (e.g., 2048)  ← 4× expansion
+Input : d_model  (e.g., 512)
+Hidden: d_ff     (e.g., 2048)
 Output: d_model  (e.g., 512)
 ```
 
-The expansion gives the network more capacity.
+Each hidden dimension corresponds to **one neuron**.
+
+Expanding from `d_model` to `d_ff` gives the model many more neurons, allowing different neurons to specialize in detecting different features.
+
+Think of these neurons as **specialists**:
+
+> More specialists → richer feature detection.
+
+One neuron might specialize in detecting "this token follows a preposition."
+Another might specialize in "this token appears to be a number."
+None of this is programmed — they learn it from data.
+
+Many Transformers use `d_ff ≈ 4 × d_model`, although modern architectures sometimes use different expansion ratios.
 
 ---
 
 ## 4. Activation Functions
 
-Original Transformer: **ReLU**
+The activation function determines **which neurons are active**.
+
+Without an activation function, the two linear layers would collapse into a single linear operation — and the model would have no way to detect complex, non-linear features.
+
+**ReLU** turns negative values into zero, effectively telling a neuron:
+
+> "You have nothing useful to contribute for this token."
+
+```
+Input:  [-3,  5, -2,  8]
+
+          ↓  ReLU
+
+Output: [ 0,  5,  0,  8]
+```
+
+Neurons with negative output are switched off. Only the active ones pass through.
+
+**ReLU formula:**
 
 ```
 ReLU(x) = max(0, x)
 ```
 
-Modern models: **GELU**
+**GELU** is a smoother version — instead of a hard cutoff at zero, it gradually suppresses near-zero values.
 
 ```
-GELU(x) ≈ x * Φ(x)   where Φ is the CDF of standard normal
+GELU(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x³)))
 ```
 
-GELU is smoother than ReLU.
-
-Used in GPT-2, GPT-3, BERT.
+Used in GPT-2, GPT-3, BERT. Preferred in most modern models.
 
 ---
 
 ## 5. Visual
 
 ```
-Token vector: [0.21, 0.54, -0.13, ...]
-                          ↓
-              Linear W1 (d_model → d_ff)
-                          ↓
-              Activation (ReLU / GELU)
-                          ↓
-              Linear W2 (d_ff → d_model)
-                          ↓
-              Output: [0.33, -0.12, 0.88, ...]
+Context-aware embedding
+        │
+        ▼
+Linear W1
+(expand)
+        │
+        ▼
+3072 neurons
+
+Each neuron asks:
+
+"Do I detect my feature?"
+
+        │
+        ▼
+Activation
+
+Only relevant neurons stay active
+
+        │
+        ▼
+Linear W2
+
+Combine all active features
+
+        │
+        ▼
+Updated embedding
 ```
 
 Same operation applied to every token separately.
@@ -107,13 +209,40 @@ Same operation applied to every token separately.
 
 Attention already mixed information across tokens.
 
-FFN processes each token individually — it is a **position-wise** operation.
+Now each token has everything it needs from its context.
 
-This is sometimes called "position-wise feed-forward."
+The FFN examines each token individually — like a specialist examining **one patient at a time**.
+
+> Attention gathers information from other patients (tokens).
+>
+> The FFN examines only the current patient.
+
+This is sometimes called a **position-wise** feed-forward network.
 
 ---
 
 # Coding Assignments
+
+## Assignment 0 — One Neuron
+
+Before building the FFN, implement a single neuron.
+
+```python
+def neuron(x, w, b):
+    pass
+```
+
+Test it on:
+
+```python
+x = [2, 3, 4]
+w = [1, -2, 0.5]
+b = 1
+```
+
+Compute `x @ w + b` manually, then verify your function matches.
+
+---
 
 ## Assignment 1 — ReLU Activation
 
@@ -177,7 +306,9 @@ Apply FFN independently to each row.
 
 # Success Criteria
 
-* Know the FFN is a 2-layer MLP per token
-* Know d_ff is typically 4× d_model
-* Implement ReLU and GELU
-* Know the input/output shape is unchanged
+* Know that **one neuron = one set of weights producing one output.**
+* Know that the FFN expands the embedding into many neurons (feature detectors).
+* Know why activation functions are needed — without them, the two linear layers collapse into one.
+* Know why the hidden layer is larger than the embedding — more neurons means more specialists.
+* Know the FFN processes each token independently.
+* Implement ReLU, GELU, and a simple FFN.
